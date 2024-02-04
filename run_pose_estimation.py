@@ -4,7 +4,6 @@
 # https://github.com/tensorflow/tensorflow/blob/master/tensorflow/lite/examples/python/label_image.py
 #
 # I added my own method of drawing boxes and labels using OpenCV.
-############ Credit to Evan for writing this script. I modified it to work with the PoseNet model.##### 
 
 # Import packages
 import os
@@ -23,14 +22,6 @@ import tflite_runtime.interpreter as tflite
 
 
 import time
-import RPi.GPIO as GPIO
-
-GPIO.setmode(GPIO.BCM)
-#led
-GPIO.setup(4, GPIO.OUT)
-#button
-GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
 
 class VideoStream:
     """Camera object that controls video streaming from the Picamera"""
@@ -433,14 +424,11 @@ debug = True
 try:
     print("Progam started - waiting for button push...")
     while True:
-    #if True:
         #make sure LED is off and wait for button press
-        #if not led_on and  not GPIO.input(17):
         if True:
             #timestamp an output directory for each capture
             outdir = pathlib.Path(args.output_path) / time.strftime('%Y-%m-%d_%H-%M-%S-%Z')
             outdir.mkdir(parents=True)
-            GPIO.output(4, True)
             time.sleep(.1)
             led_on = True
             f = []
@@ -456,25 +444,17 @@ try:
                 print('running loop')
                 # Start timer (for calculating frame rate)
                 t1 = cv2.getTickCount()
-                
                 # Grab frame from video stream
                 frame1 = videostream.read()
                 image_file = "/home/pi/rpi_pose_estimation/01.jpg"
-                #frame1 = cv2.imread(image_file)
-                #print(type(frame1))
                 # Acquire frame and resize to expected shape [1xHxWx3]
                 frame = frame1.copy()
                 image_data = preprocess_image(frame, model_input_shape)
                 image_size = frame.shape
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame_resized = cv2.resize(frame_rgb, (width, height))
-                #print(width)
-                #print(height)
-                #frame_resized = np.ones((width,height,3))
                 input_data = np.expand_dims(frame_resized, axis=0)
-                
                 frame_resized = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
-
                 scale = (image_size[1] * 1.0 / model_input_shape[1], image_size[0] * 1.0 / model_input_shape[0])
 
                 interpreter.set_tensor(input_details[0]['index'], image_data)
@@ -486,32 +466,21 @@ try:
                     prediction.append(output_data)
 
                 heatmap = prediction[-1][0]
-
-
                 class_names = get_classes(classes_path)
                 skeleton_lines = get_skeleton(skeleton_path)    
-
                 image_array = process_heatmap(heatmap, image_file, frame, scale, class_names, skeleton_lines, output_path)
                 
                 interpreter1.set_tensor(input_details[0]['index'], image_array)
                 interpreter1.invoke()
                 
                 utput_data = interpreter.get_tensor(output_details[0]['index'])
-                #print( output_data)
                 predicted_class = np.argmax(output_data)
-                #print( predicted_class)
-                #.putText(image_array, predicted_class, (0,0))
-
                 cv2.imshow('image', image_array)
                 cv2.waitKey(1)
-        #break
-    # heatmap = prediction[-1][0]
-    # process_heatmap(heatmap, image_file, img, scale, class_names, skeleton_lines, output_path)
+
 except KeyboardInterrupt:
-    # Clean up
     cv2.destroyAllWindows()
     videostream.stop()
     print('Stopped video stream.')
     GPIO.output(4, False)
     GPIO.cleanup()
-    #print(str(sum(f)/len(f)))
